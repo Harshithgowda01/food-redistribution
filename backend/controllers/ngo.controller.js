@@ -5,7 +5,7 @@ const MatchingLog = require('../models/MatchingLog.model');
 const Volunteer = require('../models/Volunteer.model');
 const Delivery = require('../models/Delivery.model');
 const { createNotification } = require('../utils/notificationHelper');
-const { notifyNextNGO } = require('../services/matching.service');
+const { notifyNextNGO, rematchDonation } = require('../services/matching.service');
 const { haversineDistance } = require('../utils/haversine');
 
 // ─────────────────────────────────────────
@@ -133,7 +133,7 @@ const acceptDonation = async (req, res) => {
     currentEntry.respondedAt = new Date();
 
     donation.matchedNGO = req.user._id;
-    donation.matchedNGOProfile = ngoProfile._id;
+    donation.matchedNGOProfile = ngoProfile ? ngoProfile._id : null;
     donation.status = 'NGO_ACCEPTED';
     donation.acceptedAt = new Date();
 
@@ -148,7 +148,7 @@ const acceptDonation = async (req, res) => {
       donation.donor,
       'NGO_ACCEPTED',
       'NGO Accepted Your Donation',
-      `${ngoProfile.organizationName} has accepted your donation "${donation.foodName}".`,
+      `${ngoProfile?.organizationName || 'An NGO'} has accepted your donation "${donation.foodName}".`,
       donation._id
     );
 
@@ -178,8 +178,15 @@ const rejectDonation = async (req, res) => {
 
     currentEntry.status = 'rejected';
     currentEntry.respondedAt = new Date();
-    donation.currentNGOIndex += 1;
 
+    // Add rejecting NGO to excluded list for this donation
+    if (!donation.excludedNGOs) donation.excludedNGOs = [];
+    const isAlreadyExcluded = donation.excludedNGOs.some(id => id.toString() === req.user._id.toString());
+    if (!isAlreadyExcluded) {
+      donation.excludedNGOs.push(req.user._id);
+    }
+
+    donation.currentNGOIndex += 1;
     await donation.save();
 
     await notifyNextNGO(donation._id);
@@ -239,8 +246,8 @@ const chooseCollectionMethod = async (req, res) => {
 
     const ngo = await NGO.findOne({ user: req.user._id });
     const statusMessage = collectionMethod === 'self_collect'
-      ? `${ngo.organizationName} will collect your donation.`
-      : `${ngo.organizationName} has requested a volunteer to collect and deliver your donation.`;
+      ? `${ngo?.organizationName || 'The NGO'} will collect your donation.`
+      : `${ngo?.organizationName || 'The NGO'} has requested a volunteer to collect and deliver your donation.`;
 
     await createNotification(
       donation.donor,
@@ -252,23 +259,24 @@ const chooseCollectionMethod = async (req, res) => {
 
     // If volunteer requested, find the nearest 5 available volunteers and notify them
     if (collectionMethod === 'volunteer') {
-      const pickupLat = donation.pickupLocation.coordinates[1];
-      const pickupLng = donation.pickupLocation.coordinates[0];
+      const pickupLat = (donation.pickupLocation && donation.pickupLocation.coordinates && donation.pickupLocation.coordinates[1]) || 0;
+      const pickupLng = (donation.pickupLocation && donation.pickupLocation.coordinates && donation.pickupLocation.coordinates[0]) || 0;
 
-      // Find active volunteers who are available and not currently doing a delivery
       const availableVolunteers = await Volunteer.find({
         isAvailable: true,
         activeDelivery: null
       }).populate('user', 'name email');
 
-      // Filter volunteers who have set their map location
       const validVolunteers = availableVolunteers.filter(v =>
+        v &&
+        v.user &&
+        v.user._id &&
         v.location &&
         v.location.coordinates &&
+        v.location.coordinates.length >= 2 &&
         (v.location.coordinates[0] !== 0 || v.location.coordinates[1] !== 0)
       );
 
-      // Rank by Haversine distance from donor pickup point
       const rankedVolunteers = validVolunteers.map(v => {
         const dist = haversineDistance(
           pickupLat,
@@ -281,14 +289,20 @@ const chooseCollectionMethod = async (req, res) => {
 
       const top5Volunteers = rankedVolunteers.slice(0, 5);
 
-      // Send in-app notification to nearest 5 volunteers
       for (const item of top5Volunteers) {
+        if (!item.volunteer?.user?._id) continue;
         await createNotification(
           item.volunteer.user._id,
           'NEW_DELIVERY_REQUEST',
           'New Delivery Request Nearby',
           `A donation of "${donation.foodName}" (${donation.quantity} ${donation.quantityUnit}) needs pickup ${item.distanceKm.toFixed(1)} km away.`,
-          donation._id
+          donation._id,
+          null,
+          {
+            subject: `[Delivery Opportunity] Pick up "${donation.foodName}" nearby (${item.distanceKm.toFixed(1)} km)`,
+            actionText: 'View & Accept Delivery',
+            actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/volunteer/dashboard`
+          }
         );
       }
     }
@@ -425,8 +439,8 @@ const retryVolunteerSearch = async (req, res) => {
     donation.volunteerSearchTimedOut = false;
     await donation.save();
 
-    const pickupLat = donation.pickupLocation.coordinates[1];
-    const pickupLng = donation.pickupLocation.coordinates[0];
+    const pickupLat = (donation.pickupLocation && donation.pickupLocation.coordinates && donation.pickupLocation.coordinates[1]) || 0;
+    const pickupLng = (donation.pickupLocation && donation.pickupLocation.coordinates && donation.pickupLocation.coordinates[0]) || 0;
 
     const availableVolunteers = await Volunteer.find({
       isAvailable: true,
@@ -434,8 +448,12 @@ const retryVolunteerSearch = async (req, res) => {
     }).populate('user', 'name email');
 
     const validVolunteers = availableVolunteers.filter(v =>
+      v &&
+      v.user &&
+      v.user._id &&
       v.location &&
       v.location.coordinates &&
+      v.location.coordinates.length >= 2 &&
       (v.location.coordinates[0] !== 0 || v.location.coordinates[1] !== 0)
     );
 
@@ -452,6 +470,7 @@ const retryVolunteerSearch = async (req, res) => {
     const top5Volunteers = rankedVolunteers.slice(0, 5);
 
     for (const item of top5Volunteers) {
+      if (!item.volunteer?.user?._id) continue;
       await createNotification(
         item.volunteer.user._id,
         'NEW_DELIVERY_REQUEST',
@@ -468,6 +487,139 @@ const retryVolunteerSearch = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────
+// VOLUNTEER TIMEOUT ACTION (Collect Myself vs Cancel Donation & Rematch)
+// ─────────────────────────────────────────
+const handleVolunteerTimeoutAction = async (req, res) => {
+  try {
+    const { action, reason } = req.body;
+
+    if (!['COLLECT_MYSELF', 'CANCEL_DONATION'].includes(action)) {
+      return res.status(400).json({
+        message: 'Invalid action. Must be either "COLLECT_MYSELF" or "CANCEL_DONATION"'
+      });
+    }
+
+    const donation = await Donation.findById(req.params.id);
+    if (!donation) {
+      return res.status(404).json({ message: 'Donation not found' });
+    }
+
+    // Security check: Must be the currently assigned NGO
+    if (donation.matchedNGO?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'You are not the NGO assigned to this donation' });
+    }
+
+    // Must be in VOLUNTEER_REQUESTED state
+    if (donation.status !== 'VOLUNTEER_REQUESTED') {
+      return res.status(400).json({
+        message: `Cannot perform timeout action on donation with status "${donation.status}"`
+      });
+    }
+
+    const ngo = await NGO.findOne({ user: req.user._id });
+
+    // ─────────────────────────────────────
+    // CASE 1: NGO CHOOSES "COLLECT MYSELF"
+    // ─────────────────────────────────────
+    if (action === 'COLLECT_MYSELF') {
+      donation.collectionMethod = 'self_collect';
+      donation.status = 'NGO_COLLECTING';
+      donation.volunteerSearchTimedOut = false;
+      await donation.save();
+
+      await createNotification(
+        donation.donor,
+        'NGO_SELF_COLLECTING',
+        'NGO Will Collect the Food Directly',
+        `${ngo?.organizationName || 'The assigned NGO'} has chosen to collect the donation directly.`,
+        donation._id
+      );
+
+      return res.json({
+        message: 'You have chosen to collect the food directly. Donation status updated to NGO Collecting.',
+        action: 'COLLECT_MYSELF',
+        donation
+      });
+    }
+
+    // ─────────────────────────────────────
+    // CASE 2: NGO CHOOSES "CANCEL DONATION"
+    // ─────────────────────────────────────
+    if (action === 'CANCEL_DONATION') {
+      const now = new Date();
+
+      // Check if food has already expired
+      if (new Date(donation.expiryTime) <= now) {
+        donation.status = 'EXPIRED';
+        donation.cancelledAt = now;
+        donation.cancellationReason = reason || 'Expired during volunteer search';
+        await donation.save();
+
+        await createNotification(
+          donation.donor,
+          'DONATION_CANCELLED',
+          'Food Donation Expired',
+          `Your donation "${donation.foodName}" has expired and could not be rematched.`,
+          donation._id
+        );
+
+        return res.json({
+          message: 'Donation has reached its expiry time and has been marked as EXPIRED.',
+          action: 'CANCEL_DONATION',
+          status: 'EXPIRED',
+          donation
+        });
+      }
+
+      // Race-safe concurrency check: Atomically transition state from VOLUNTEER_REQUESTED
+      const updatedLock = await Donation.findOneAndUpdate(
+        {
+          _id: donation._id,
+          status: 'VOLUNTEER_REQUESTED',
+          matchedNGO: req.user._id
+        },
+        {
+          status: 'MATCHING',
+          volunteerSearchTimedOut: false
+        },
+        { new: true }
+      );
+
+      if (!updatedLock) {
+        return res.status(400).json({
+          message: 'Donation state has changed or cancellation already processed.'
+        });
+      }
+
+      // Execute rematching excluding this NGO
+      const rematchResult = await rematchDonation(donation._id, req.user._id);
+
+      // Notify donor that previous NGO cancelled and rematch is underway
+      await createNotification(
+        donation.donor,
+        'DONATION_CANCELLED',
+        'Donation Rematching In Progress',
+        `${ngo?.organizationName || 'The previous NGO'} cancelled due to volunteer unavailability. We are matching your donation to the next eligible NGO.`,
+        donation._id
+      );
+
+      const finalDonation = await Donation.findById(donation._id);
+
+      return res.json({
+        message: 'Donation cancelled and successfully submitted for rematching to the next eligible NGO.',
+        action: 'CANCEL_DONATION',
+        rematchResult,
+        donation: finalDonation
+      });
+    }
+
+  } catch (error) {
+    console.error('Handle volunteer timeout action error:', error.message);
+    res.status(500).json({ message: 'Server error processing volunteer timeout action' });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
@@ -478,5 +630,6 @@ module.exports = {
   chooseCollectionMethod,
   confirmReceipt,
   switchSelfCollect,
-  retryVolunteerSearch
+  retryVolunteerSearch,
+  handleVolunteerTimeoutAction
 };

@@ -278,28 +278,28 @@ const getMapData = async (req, res) => {
       subtitle: `${d.quantity} ${d.quantityUnit} • ${d.foodType}`,
       status: d.status,
       address: d.pickupAddress,
-      lat: d.pickupLocation.coordinates[1],
-      lng: d.pickupLocation.coordinates[0]
+      lat: (d.pickupLocation && d.pickupLocation.coordinates && d.pickupLocation.coordinates[1]) || 0,
+      lng: (d.pickupLocation && d.pickupLocation.coordinates && d.pickupLocation.coordinates[0]) || 0
     }));
 
     const ngoPoints = ngos.map(n => ({
       id: n._id,
       type: 'ngo_location',
-      title: n.organizationName,
+      title: n.organizationName || 'NGO',
       subtitle: `Capacity: ${n.capacity} meals • ${n.isAvailable ? 'Available' : 'Unavailable'}`,
       address: n.address,
-      lat: n.location.coordinates[1],
-      lng: n.location.coordinates[0]
+      lat: (n.location && n.location.coordinates && n.location.coordinates[1]) || 0,
+      lng: (n.location && n.location.coordinates && n.location.coordinates[0]) || 0
     }));
 
     const volunteerPoints = volunteers.map(v => ({
       id: v._id,
       type: 'volunteer_location',
       title: v.user?.name || 'Volunteer',
-      subtitle: `Vehicle: ${v.vehicleType} • ${v.isAvailable ? 'Available' : 'Busy'}`,
+      subtitle: `Vehicle: ${v.vehicleType || 'other'} • ${v.isAvailable ? 'Available' : 'Busy'}`,
       address: v.address,
-      lat: v.location.coordinates[1],
-      lng: v.location.coordinates[0]
+      lat: (v.location && v.location.coordinates && v.location.coordinates[1]) || 0,
+      lng: (v.location && v.location.coordinates && v.location.coordinates[0]) || 0
     }));
 
     res.json({

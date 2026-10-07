@@ -10,3 +10,4 @@ export const chooseCollectionMethod = (id, data) => api.put(`/ngo/donations/${id
 export const confirmNGOReceipt = (id) => api.put(`/ngo/donations/${id}/confirm-receipt`);
 export const switchSelfCollect = (id) => api.put(`/ngo/donations/${id}/switch-self-collect`);
 export const retryVolunteerSearch = (id) => api.put(`/ngo/donations/${id}/retry-volunteer`);
+export const volunteerTimeoutAction = (id, action, reason = '') => api.post(`/ngo/donations/${id}/volunteer-timeout-action`, { action, reason });

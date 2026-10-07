@@ -1,8 +1,10 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 
 const DonorNavbar = () => {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -15,7 +17,7 @@ const DonorNavbar = () => {
     { to: '/donor/dashboard', label: '📊 Dashboard' },
     { to: '/donor/donate', label: '➕ Post Donation' },
     { to: '/donor/donations', label: '📦 My Donations' },
-    { to: '/donor/notifications', label: '🔔 Notifications' },
+    { to: '/donor/notifications', label: '🔔 Notifications', badge: unreadCount },
     { to: '/donor/profile', label: '👤 Profile' }
   ];
 
@@ -23,7 +25,7 @@ const DonorNavbar = () => {
     <nav className="bg-slate-900 text-white shadow-md border-b border-slate-800">
       <div className="max-w-7xl mx-auto px-6 py-3.5 flex justify-between items-center flex-wrap gap-4">
         <Link to="/donor/dashboard" className="flex items-center gap-3 group">
-          <img src="../assests/logo.png" alt="logo" className='w-14 h-14' />
+          <span className="text-2xl group-hover:scale-110 transition">🍲</span>
           <div>
             <h1 className="text-lg font-bold text-emerald-400 leading-tight">FoodShare</h1>
             <p className="text-xs text-slate-400">Donor Portal</p>
@@ -37,12 +39,18 @@ const DonorNavbar = () => {
               <Link
                 key={link.to}
                 to={link.to}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${isActive
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                  }`}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+                  isActive
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
               >
-                {link.label}
+                <span>{link.label}</span>
+                {Boolean(link.badge) && (
+                  <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                    {link.badge}
+                  </span>
+                )}
               </Link>
             );
           })}

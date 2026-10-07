@@ -112,6 +112,13 @@ const donationSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Excluded NGOs for this donation (rejected, timed out, or cancelled after volunteer failure)
+  excludedNGOs: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
+  ],
 
   // Volunteer
   assignedVolunteer: {

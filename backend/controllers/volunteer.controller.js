@@ -200,6 +200,21 @@ const acceptDelivery = async (req, res) => {
     volunteerProfile.isAvailable = false;
     await volunteerProfile.save();
 
+    // Notify Volunteer
+    await createNotification(
+      req.user._id,
+      'DELIVERY_ASSIGNED',
+      'Delivery Mission Confirmed!',
+      `You have been assigned to deliver "${donation.foodName}" to the NGO. Pickup address: ${donation.pickupAddress}.`,
+      donation._id,
+      delivery._id,
+      {
+        subject: `[Assignment Confirmed] Deliver "${donation.foodName}"`,
+        actionText: 'Open Active Delivery',
+        actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/volunteer/active`
+      }
+    );
+
     // Notify Donor
     await createNotification(
       donation.donor._id || donation.donor,

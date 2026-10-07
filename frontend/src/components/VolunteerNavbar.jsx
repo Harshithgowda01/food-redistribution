@@ -1,8 +1,10 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 
 const VolunteerNavbar = () => {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -15,7 +17,7 @@ const VolunteerNavbar = () => {
     { to: '/volunteer/dashboard', label: '📊 Dashboard' },
     { to: '/volunteer/active', label: '🛵 Live Mission' },
     { to: '/volunteer/history', label: '📜 Delivery History' },
-    { to: '/volunteer/notifications', label: '🔔 Notifications' },
+    { to: '/volunteer/notifications', label: '🔔 Notifications', badge: unreadCount },
     { to: '/volunteer/profile', label: '👤 Profile' }
   ];
 
@@ -37,13 +39,18 @@ const VolunteerNavbar = () => {
               <Link
                 key={link.to}
                 to={link.to}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
                   isActive
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 }`}
               >
-                {link.label}
+                <span>{link.label}</span>
+                {Boolean(link.badge) && (
+                  <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                    {link.badge}
+                  </span>
+                )}
               </Link>
             );
           })}

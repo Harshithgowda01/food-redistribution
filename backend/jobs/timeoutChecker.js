@@ -5,8 +5,8 @@ const Volunteer = require('../models/Volunteer.model');
 const { notifyNextNGO } = require('../services/matching.service');
 const { createNotification } = require('../utils/notificationHelper');
 
-const TIMEOUT_MINUTES = parseInt(process.env.NGO_TIMEOUT_MINUTES) || 2;
-const VOLUNTEER_TIMEOUT_MINUTES = parseInt(process.env.VOLUNTEER_TIMEOUT_MINUTES) || 3;
+const TIMEOUT_MINUTES = parseInt(process.env.NGO_TIMEOUT_MINUTES, 10) || 2;
+const VOLUNTEER_TIMEOUT_MINUTES = parseInt(process.env.VOLUNTEER_TIMEOUT_MINUTES, 10) || 3;
 
 const startTimeoutChecker = () => {
   cron.schedule('*/30 * * * * *', async () => {
@@ -19,15 +19,30 @@ const startTimeoutChecker = () => {
       const waitingDonations = await Donation.find({ status: 'WAITING_FOR_NGO' });
 
       for (const donation of waitingDonations) {
+        if (!donation.ngoRankedList || !Array.isArray(donation.ngoRankedList)) continue;
         const currentEntry = donation.ngoRankedList[donation.currentNGOIndex];
-        if (!currentEntry || currentEntry.status !== 'notified') continue;
+        if (!currentEntry || currentEntry.status !== 'notified' || !currentEntry.notifiedAt) continue;
 
         const notifiedAt = new Date(currentEntry.notifiedAt);
+        if (isNaN(notifiedAt.getTime())) continue;
+
         const minutesPassed = (now - notifiedAt) / (1000 * 60);
 
         if (minutesPassed >= TIMEOUT_MINUTES) {
           currentEntry.status = 'timeout';
           currentEntry.respondedAt = now;
+
+          // Add timed-out NGO to excluded list for this donation
+          if (!donation.excludedNGOs) donation.excludedNGOs = [];
+          if (currentEntry.ngoId) {
+            const isAlreadyExcluded = donation.excludedNGOs.some(
+              id => id && id.toString() === currentEntry.ngoId.toString()
+            );
+            if (!isAlreadyExcluded) {
+              donation.excludedNGOs.push(currentEntry.ngoId);
+            }
+          }
+
           donation.currentNGOIndex += 1;
           await donation.save();
 
@@ -63,7 +78,12 @@ const startTimeoutChecker = () => {
             'Food Arriving Soon (~2 mins)!',
             `Volunteer ${volunteerName} is approximately 2 minutes away with "${foodName}". Please prepare to receive the food.`,
             delivery.donation?._id || delivery.donation,
-            delivery._id
+            delivery._id,
+            {
+              subject: `[Arrival Alert] Food Arriving Soon: ${foodName}`,
+              actionText: 'View Delivery Status',
+              actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/ngo/dashboard`
+            }
           );
 
           console.log(`Delivery ${delivery._id}: Sent 2-minute arrival alert to NGO.`);
@@ -91,8 +111,14 @@ const startTimeoutChecker = () => {
               donation.matchedNGO,
               'NO_VOLUNTEER_AVAILABLE',
               'No Volunteer Found - Action Required',
-              `No volunteers accepted delivery for "${donation.foodName}" within ${VOLUNTEER_TIMEOUT_MINUTES} minutes. Please choose to collect the food directly or cancel the donation.`,
-              donation._id
+              `No volunteers accepted delivery for "${donation.foodName}" within ${VOLUNTEER_TIMEOUT_MINUTES} minutes. Please choose: 1) Collect Myself, or 2) Cancel Donation (to allow rematching to another NGO).`,
+              donation._id,
+              null,
+              {
+                subject: `[Action Required] No Volunteer Found for: ${donation.foodName}`,
+                actionText: 'Choose Collect Myself or Cancel',
+                actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/ngo/dashboard`
+              }
             );
           }
           console.log(`Donation ${donation._id}: Volunteer search timed out after ${VOLUNTEER_TIMEOUT_MINUTES} mins.`);

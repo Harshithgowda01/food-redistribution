@@ -11,7 +11,8 @@ const {
   chooseCollectionMethod,
   confirmReceipt,
   switchSelfCollect,
-  retryVolunteerSearch
+  retryVolunteerSearch,
+  handleVolunteerTimeoutAction
 } = require('../controllers/ngo.controller');
 
 router.get('/profile', protect, authorizeRoles('ngo'), getProfile);
@@ -24,5 +25,7 @@ router.put('/donations/:id/collection-method', protect, authorizeRoles('ngo'), c
 router.put('/donations/:id/confirm-receipt', protect, authorizeRoles('ngo'), confirmReceipt);
 router.put('/donations/:id/switch-self-collect', protect, authorizeRoles('ngo'), switchSelfCollect);
 router.put('/donations/:id/retry-volunteer', protect, authorizeRoles('ngo'), retryVolunteerSearch);
+router.post('/donations/:id/volunteer-timeout-action', protect, authorizeRoles('ngo'), handleVolunteerTimeoutAction);
+router.put('/donations/:id/volunteer-timeout-action', protect, authorizeRoles('ngo'), handleVolunteerTimeoutAction);
 
 module.exports = router;

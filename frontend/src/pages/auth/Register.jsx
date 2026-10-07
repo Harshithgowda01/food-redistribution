@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import logoImg from '../../assets/logo.png';
 import toast from 'react-hot-toast';
 
 const Register = () => {
@@ -45,8 +46,8 @@ const Register = () => {
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-lg text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-3xl mb-4">
-          <img src="../assests/logo.png" alt="logo" />
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-3xl mb-4 overflow-hidden">
+          <img src={logoImg} alt="FoodShare logo" className="w-12 h-12 object-contain" />
         </div>
         <h1 className="text-3xl font-extrabold text-slate tracking-tight">
           Join Food<span className="text-emerald-400">Share</span>

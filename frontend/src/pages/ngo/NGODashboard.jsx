@@ -12,7 +12,8 @@ import {
   chooseCollectionMethod,
   confirmNGOReceipt,
   switchSelfCollect,
-  retryVolunteerSearch
+  retryVolunteerSearch,
+  volunteerTimeoutAction
 } from '../../api/ngo.api';
 import { cancelDonation } from '../../api/donation.api';
 import toast from 'react-hot-toast';
@@ -26,6 +27,7 @@ const NGODashboard = () => {
   const [decisionDonation, setDecisionDonation] = useState(null);
   const [cancelTargetDonation, setCancelTargetDonation] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [timeoutCancelTarget, setTimeoutCancelTarget] = useState(null);
   const [collectionMethod, setCollectionMethod] = useState('self_collect');
   const [deliveryOption, setDeliveryOption] = useState('registered');
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -138,11 +140,32 @@ const NGODashboard = () => {
   const handleSwitchSelfCollect = async (id) => {
     setActionLoading(id);
     try {
-      await switchSelfCollect(id);
+      await volunteerTimeoutAction(id, 'COLLECT_MYSELF');
       toast.success('Switched to self-collection mode! Your team can now pick up the food.');
       fetchMyDonations();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to switch to self-collect');
+    } finally {
+      if (isMountedRef.current) {
+        setActionLoading(null);
+      }
+    }
+  };
+
+  const handleTimeoutCancelSubmit = async (donationId, reason) => {
+    setActionLoading(donationId);
+    try {
+      const res = await volunteerTimeoutAction(donationId, 'CANCEL_DONATION', reason);
+      if (res.data?.status === 'EXPIRED') {
+        toast.error('Donation has expired and could not be rematched.');
+      } else {
+        toast.success('Donation is being rematched to the next eligible NGO.');
+      }
+      setTimeoutCancelTarget(null);
+      fetchMyDonations();
+      fetchIncoming();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to cancel and rematch donation');
     } finally {
       if (isMountedRef.current) {
         setActionLoading(null);
@@ -322,16 +345,16 @@ const NGODashboard = () => {
                   <button
                     onClick={() => handleAccept(donation._id)}
                     disabled={actionLoading === donation._id}
-                    className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                    className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition"
                   >
-                    Accept
+                    {actionLoading === donation._id ? 'Accepting...' : 'Accept'}
                   </button>
                   <button
                     onClick={() => handleReject(donation._id)}
                     disabled={actionLoading === donation._id}
-                    className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-600 disabled:opacity-50"
+                    className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-600 disabled:opacity-50 transition"
                   >
-                    Reject
+                    {actionLoading === donation._id ? 'Rejecting...' : 'Reject'}
                   </button>
                 </div>
               </div>
@@ -367,47 +390,90 @@ const NGODashboard = () => {
               <span>⚠️</span> Volunteer Search Timed Out (Action Required)
             </h2>
             {myDonations.filter(d => d.status === 'VOLUNTEER_REQUESTED' && d.volunteerSearchTimedOut).map((donation) => (
-              <div key={donation._id} className="bg-amber-50 border-2 border-amber-300 p-5 rounded-xl">
+              <div key={donation._id} className="bg-amber-50 border-2 border-amber-300 p-5 rounded-xl shadow-sm">
                 <div className="flex justify-between items-start flex-wrap gap-2 mb-2">
                   <div>
                     <h3 className="font-bold text-amber-900 text-base">{donation.foodName}</h3>
-                    <p className="text-xs text-amber-800 mt-0.5">
-                      No nearby volunteer accepted this delivery in time. Please choose how you want to proceed:
+                    <p className="text-xs text-amber-800 mt-1">
+                      No volunteer accepted this request within 3 minutes. Please choose how you want to proceed:
                     </p>
                   </div>
-                  <span className="text-xs font-semibold px-2.5 py-1 bg-amber-200 text-amber-900 rounded-full">
+                  <span className="text-xs font-semibold px-3 py-1 bg-amber-200 text-amber-900 rounded-full">
                     No Volunteer Available
                   </span>
                 </div>
 
-                <div className="flex gap-2 flex-wrap mt-4">
+                <div className="flex gap-3 flex-wrap mt-4">
                   <button
                     onClick={() => handleSwitchSelfCollect(donation._id)}
                     disabled={actionLoading === donation._id}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-green-700 shadow-sm transition disabled:opacity-50"
+                    className="bg-green-600 text-white px-4 py-2.5 rounded-lg text-xs font-semibold hover:bg-green-700 shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
                   >
-                    🛵 Collect Myself (Self-Collect)
+                    <span>🛵</span> Collect Myself
+                  </button>
+                  <button
+                    onClick={() => setTimeoutCancelTarget(donation)}
+                    disabled={actionLoading === donation._id}
+                    className="bg-red-600 text-white px-4 py-2.5 rounded-lg text-xs font-semibold hover:bg-red-700 shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <span>❌</span> Cancel Donation (Rematch)
                   </button>
                   <button
                     onClick={() => handleRetryVolunteer(donation._id)}
                     disabled={actionLoading === donation._id}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition disabled:opacity-50"
+                    className="bg-gray-100 text-gray-700 border border-gray-300 px-3.5 py-2.5 rounded-lg text-xs font-medium hover:bg-gray-200 transition disabled:opacity-50"
                   >
-                    🔄 Retry Volunteer Search
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCancelTargetDonation(donation);
-                      setCancelReason('No volunteer available and unable to self-collect');
-                    }}
-                    disabled={actionLoading === donation._id}
-                    className="bg-red-500 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-red-600 shadow-sm transition disabled:opacity-50"
-                  >
-                    ❌ Cancel Donation
+                    🔄 Retry Search
                   </button>
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Timeout Cancellation Modal (Rematch Confirmation) */}
+        {timeoutCancelTarget && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
+              <div className="flex justify-between items-start">
+                <h2 className="text-lg font-bold text-gray-800">
+                  Cancel Donation & Rematch
+                </h2>
+                <button
+                  onClick={() => setTimeoutCancelTarget(null)}
+                  className="text-gray-400 hover:text-gray-600 font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 space-y-1">
+                <p className="font-semibold">Food Item: {timeoutCancelTarget.foodName}</p>
+                <p>By cancelling, this donation will be automatically rematched to the next highest-ranked eligible NGO.</p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setTimeoutCancelTarget(null)}
+                  className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-300 transition"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading === timeoutCancelTarget._id}
+                  onClick={() => handleTimeoutCancelSubmit(timeoutCancelTarget._id, 'No volunteer accepted within timeout')}
+                  className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 shadow transition flex justify-center items-center gap-2"
+                >
+                  {actionLoading === timeoutCancelTarget._id ? (
+                    <span>Rematching...</span>
+                  ) : (
+                    <span>Confirm & Rematch</span>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
