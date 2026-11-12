@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { MapPin } from 'lucide-react';
 import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -63,11 +64,12 @@ const LocationPicker = ({ onLocationSelect, initialPosition }) => {
       <button
         type="button"
         onClick={handleUseCurrentLocation}
-        className="mb-2 bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-600"
+        className="mb-2 btn-secondary text-sm py-2"
       >
-        📍 Use My Current Location
+        <MapPin size={15} />
+        Use my current location
       </button>
-      <div className="rounded-lg overflow-hidden border border-gray-300" style={{ height: '300px' }}>
+      <div className="rounded-control overflow-hidden border border-line" style={{ height: '300px' }}>
         <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }}>
           <ChangeView center={center} />
           <TileLayer
@@ -77,11 +79,11 @@ const LocationPicker = ({ onLocationSelect, initialPosition }) => {
           <LocationMarker position={position} setPosition={setPosition} />
         </MapContainer>
       </div>
-      <p className="text-xs text-gray-500 mt-1">
+      <p className="text-xs text-muted mt-1.5">
         Click on the map to set the exact location, or use the button above.
       </p>
       {position && (
-        <p className="text-xs text-gray-600 mt-1">
+        <p className="text-xs text-body mt-1">
           Selected: {position.lat.toFixed(5)}, {position.lng.toFixed(5)}
         </p>
       )}

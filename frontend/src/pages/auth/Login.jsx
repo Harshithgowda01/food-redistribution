@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import logoImg from '../../assets/logo.png';
 import toast from 'react-hot-toast';
+import { Handshake, MapPinned, ShieldCheck } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -30,70 +31,83 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-3xl mb-4 overflow-hidden">
-          <img src={logoImg} alt="FoodShare logo" className="w-12 h-12 object-contain" />
+    <div className="min-h-screen grid lg:grid-cols-2 bg-canvas">
+      <div className="hidden lg:flex flex-col justify-between bg-ink text-white p-12">
+        <div className="flex items-center gap-3">
+          <img src={logoImg} alt="" className="w-10 h-10 rounded-lg object-contain bg-white/10 p-1" />
+          <span className="text-lg font-semibold">FoodShare</span>
         </div>
-        <h1 className="text-3xl font-extrabold text-slate tracking-tight">
-          Food<span className="text-emerald-400">Share</span>
-        </h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Smart Food Redistribution & Community Rescue Platform
-        </p>
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight leading-snug">
+            Rescue surplus food and get it to people who need it.
+          </h1>
+          <p className="text-slate-300 mt-4 max-w-md text-sm leading-relaxed">
+            A coordination platform for restaurants, NGOs, volunteers, and operators — built for trust, timing, and reliable handoffs.
+          </p>
+          <ul className="mt-10 space-y-4 text-sm">
+            {[
+              { icon: Handshake, text: 'Match surplus donations with nearby NGO partners' },
+              { icon: MapPinned, text: 'Coordinate pickup, delivery, and live mission status' },
+              { icon: ShieldCheck, text: 'A professional workflow NGOs and businesses can trust' },
+            ].map(({ icon: Icon, text }) => (
+              <li key={text} className="flex items-start gap-3 text-slate-200">
+                <span className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                  <Icon size={16} />
+                </span>
+                {text}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="text-xs text-slate-500">Food rescue · Community impact · Real-time logistics</p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
-        <div className="bg-white py-8 px-6 shadow-2xl rounded-2xl sm:px-10 border border-slate-200">
-          <h2 className="text-xl font-bold text-slate-800 mb-1">Sign in to your account</h2>
-          <p className="text-xs text-slate-500 mb-6">Choose your role credentials to continue</p>
+      <div className="flex flex-col justify-center py-12 px-4 sm:px-8">
+        <div className="w-full max-w-md mx-auto">
+          <div className="lg:hidden flex items-center gap-3 mb-8">
+            <img src={logoImg} alt="FoodShare" className="w-10 h-10 rounded-lg object-contain bg-forest-light p-1" />
+            <span className="text-lg font-semibold text-ink">FoodShare</span>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <h2 className="text-2xl font-semibold text-ink tracking-tight">Sign in</h2>
+          <p className="text-sm text-muted mt-1 mb-8">Use your account credentials to continue.</p>
+
+          <form onSubmit={handleSubmit} className="card p-6 sm:p-8 space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                Email Address
-              </label>
+              <label className="field-label">Email address</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+                className="field-input"
                 placeholder="name@example.com"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                Password
-              </label>
+              <label className="field-label">Password</label>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+                className="field-input"
                 placeholder="••••••••"
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-emerald-700 active:bg-emerald-800 shadow-md shadow-emerald-600/20 transition disabled:opacity-50 mt-2"
-            >
-              {loading ? 'Authenticating...' : 'Sign In →'}
+            <button type="submit" disabled={loading} className="btn-primary w-full mt-2">
+              {loading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-100 text-center">
-            <p className="text-sm text-slate-600">
-              New to FoodShare?{' '}
-              <Link to="/register" className="text-emerald-600 font-bold hover:underline">
-                Create an account
-              </Link>
-            </p>
-          </div>
+          <p className="text-sm text-body text-center mt-6">
+            New to FoodShare?{' '}
+            <Link to="/register" className="text-forest font-semibold hover:underline">
+              Create an account
+            </Link>
+          </p>
         </div>
       </div>
     </div>

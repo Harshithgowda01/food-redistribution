@@ -31,7 +31,18 @@ function App() {
     <AuthProvider>
       <NotificationProvider>
         <BrowserRouter>
-          <Toaster position="top-right" />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                borderRadius: '12px',
+                border: '1px solid #E2E8F0',
+                fontSize: '13px',
+                fontFamily: 'Plus Jakarta Sans, Inter, sans-serif',
+              },
+            }}
+          />
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />

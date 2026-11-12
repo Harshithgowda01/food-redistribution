@@ -5,12 +5,53 @@
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background-color: #f8fafc;
-    color: #1e293b;
+    background-color: #f4f7f6;
+    color: #334155;
+  }
+
+  *:focus-visible {
+    outline: 2px solid #0F766E;
+    outline-offset: 2px;
   }
 }
 
-/* Custom Scrollbars */
+@layer components {
+  .field-label {
+    @apply block text-sm font-medium text-ink mb-1.5;
+  }
+
+  .field-input {
+    @apply w-full bg-white border border-line rounded-control px-3.5 py-2.5 text-sm text-ink placeholder:text-slate-400
+      focus:outline-none focus:ring-2 focus:ring-forest/25 focus:border-forest transition;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-forest text-white px-4 py-2.5 rounded-control
+      text-sm font-semibold hover:bg-forest-hover active:bg-forest-dark shadow-sm
+      transition disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-white text-ink px-4 py-2.5 rounded-control
+      text-sm font-semibold border border-line hover:bg-slate-50 active:bg-slate-100
+      transition disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 text-muted px-3 py-2 rounded-control
+      text-sm font-medium hover:bg-slate-100 hover:text-ink transition;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 bg-rose-600 text-white px-4 py-2.5 rounded-control
+      text-sm font-semibold hover:bg-rose-700 transition disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .card {
+    @apply bg-white rounded-card border border-line shadow-card;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -24,4 +65,9 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+.leaflet-container {
+  font-family: inherit;
+  border-radius: 10px;
 }

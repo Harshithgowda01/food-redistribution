@@ -1,26 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Package, Plus, Activity, CheckCircle2, UtensilsCrossed } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import DonorNavbar from '../../components/DonorNavbar';
+import AppLayout from '../../components/layout/AppLayout';
+import PageHeader from '../../components/ui/PageHeader';
+import StatCard from '../../components/ui/StatCard';
+import StatusBadge from '../../components/ui/StatusBadge';
+import EmptyState from '../../components/ui/EmptyState';
+import AlertBanner from '../../components/ui/AlertBanner';
+import { PageSkeleton } from '../../components/ui/Skeleton';
 import { getMyDonations } from '../../api/donation.api';
 import toast from 'react-hot-toast';
-
-const statusColors = {
-  POSTED: 'bg-blue-50 text-blue-700 border-blue-200',
-  MATCHING: 'bg-blue-50 text-blue-700 border-blue-200',
-  WAITING_FOR_NGO: 'bg-amber-50 text-amber-700 border-amber-200',
-  NGO_ACCEPTED: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  NGO_COLLECTING: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  VOLUNTEER_REQUESTED: 'bg-purple-50 text-purple-700 border-purple-200',
-  VOLUNTEER_ASSIGNED: 'bg-purple-50 text-purple-700 border-purple-200',
-  FOOD_COLLECTED: 'bg-teal-50 text-teal-700 border-teal-200',
-  OUT_FOR_DELIVERY: 'bg-teal-50 text-teal-700 border-teal-200',
-  DELIVERED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  COMPLETED: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-  CANCELLED: 'bg-rose-50 text-rose-700 border-rose-200',
-  EXPIRED: 'bg-rose-50 text-rose-700 border-rose-200',
-  UNMATCHED: 'bg-rose-50 text-rose-700 border-rose-200',
-};
 
 const DonorDashboard = () => {
   const { user } = useAuth();
@@ -56,110 +46,78 @@ const DonorDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <DonorNavbar />
-
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        {/* Welcome Header */}
-        <div className="flex justify-between items-center flex-wrap gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">
-              Welcome, {user?.name} 👋
-            </h1>
-            <p className="text-sm text-slate-500">Track and manage your surplus food donations</p>
-          </div>
-
-          <Link
-            to="/donor/donate"
-            className="bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-semibold text-xs hover:bg-emerald-700 active:bg-emerald-800 shadow-sm shadow-emerald-600/20 transition flex items-center gap-1.5"
-          >
-            <span>➕</span> Post New Donation
+    <AppLayout>
+      <PageHeader
+        title={`Welcome, ${user?.name}`}
+        description="Track and manage your surplus food donations"
+        actions={
+          <Link to="/donor/donate" className="btn-primary">
+            <Plus size={16} /> Post donation
           </Link>
-        </div>
+        }
+      />
 
-        {!user?.profileCompleted && (
-          <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-xl mb-6 flex justify-between items-center flex-wrap gap-2 text-xs">
-            <span>Please complete your donor profile to optimize automatic matching.</span>
-            <Link to="/donor/profile" className="bg-amber-500 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-amber-600">
-              Complete Profile →
-            </Link>
-          </div>
-        )}
+      {!user?.profileCompleted && (
+        <AlertBanner
+          tone="warning"
+          title="Complete your profile"
+          actionLabel="Complete profile"
+          actionTo="/donor/profile"
+        >
+          Add your organization details and map pin so matching can find nearby NGOs.
+        </AlertBanner>
+      )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Donations</p>
-            <p className="text-2xl font-extrabold text-slate-800 mt-1">{stats.total}</p>
-            <p className="text-xs text-slate-400 mt-2">All posted listings</p>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Active Missions</p>
-            <p className="text-2xl font-extrabold text-blue-600 mt-1">{stats.active}</p>
-            <p className="text-xs text-slate-400 mt-2">Matching & in transit</p>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Completed</p>
-            <p className="text-2xl font-extrabold text-emerald-600 mt-1">{stats.completed}</p>
-            <p className="text-xs text-slate-400 mt-2">Delivered to NGOs</p>
+      {loading ? (
+        <PageSkeleton />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <StatCard icon={Package} label="Total donations" value={stats.total} hint="All posted listings" accent="text-ink" />
+            <StatCard icon={Activity} label="Active missions" value={stats.active} hint="Matching and in transit" accent="text-sky-700" />
+            <StatCard icon={CheckCircle2} label="Completed" value={stats.completed} hint="Delivered to NGOs" />
+            <StatCard icon={UtensilsCrossed} label="Meals rescued" value={stats.mealsRescued} hint="From completed donations" accent="text-indigo-700" />
           </div>
 
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Meals Rescued</p>
-            <p className="text-2xl font-extrabold text-indigo-600 mt-1">{stats.mealsRescued}</p>
-            <p className="text-xs text-slate-400 mt-2">Impacted lives</p>
-          </div>
-        </div>
-
-        {/* Recent Activity List */}
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-base font-bold text-slate-800">Recent Donation Activity</h2>
-          {donations.length > 0 && (
-            <Link to="/donor/donations" className="text-xs font-semibold text-emerald-600 hover:text-emerald-700">
-              View All ({donations.length}) →
-            </Link>
-          )}
-        </div>
-
-        {loading ? (
-          <p className="text-slate-400 text-sm">Loading activity...</p>
-        ) : donations.length === 0 ? (
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200/80 text-center">
-            <span className="text-3xl">🍲</span>
-            <p className="text-slate-600 font-semibold text-sm mt-2">No donations posted yet</p>
-            <p className="text-slate-400 text-xs mt-1">Post your surplus food to begin automatic matching with nearby charities.</p>
-            <Link
-              to="/donor/donate"
-              className="inline-block mt-4 bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-emerald-700 shadow-sm"
-            >
-              Post Food Donation
-            </Link>
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 divide-y divide-slate-100 overflow-hidden">
-            {donations.slice(0, 5).map((donation) => (
-              <Link
-                key={donation._id}
-                to={`/donor/donation/${donation._id}`}
-                className="flex justify-between items-center p-4 hover:bg-slate-50 transition"
-              >
-                <div>
-                  <p className="font-bold text-slate-800 text-sm">{donation.foodName}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {donation.quantity} {donation.quantityUnit} • Posted {new Date(donation.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${statusColors[donation.status] || 'bg-slate-100 text-slate-700'}`}>
-                  {donation.status.replace(/_/g, ' ')}
-                </span>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-base font-semibold text-ink">Recent activity</h2>
+            {donations.length > 0 && (
+              <Link to="/donor/donations" className="text-sm font-semibold text-forest hover:underline">
+                View all ({donations.length})
               </Link>
-            ))}
+            )}
           </div>
-        )}
-      </div>
-    </div>
+
+          {donations.length === 0 ? (
+            <EmptyState
+              icon={UtensilsCrossed}
+              title="No donations posted yet"
+              description="Post surplus food to begin automatic matching with nearby charities."
+              actionLabel="Post food donation"
+              actionTo="/donor/donate"
+            />
+          ) : (
+            <div className="card divide-y divide-line overflow-hidden">
+              {donations.slice(0, 5).map((donation) => (
+                <Link
+                  key={donation._id}
+                  to={`/donor/donation/${donation._id}`}
+                  className="flex justify-between items-center p-4 hover:bg-slate-50 transition"
+                >
+                  <div>
+                    <p className="font-semibold text-ink text-sm">{donation.foodName}</p>
+                    <p className="text-xs text-muted mt-0.5">
+                      {donation.quantity} {donation.quantityUnit} · Posted {new Date(donation.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <StatusBadge status={donation.status} />
+                </Link>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </AppLayout>
   );
 };
 

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import NGONavbar from '../../components/NGONavbar';
+import AppLayout from '../../components/layout/AppLayout';
 import LocationPicker from '../../components/LocationPicker';
+import PageHeader from '../../components/ui/PageHeader';
 import { getNGOProfile, updateNGOProfile } from '../../api/ngo.api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -118,89 +119,77 @@ const NGOProfile = () => {
 
   if (initialLoading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <NGONavbar />
-        <div className="max-w-2xl mx-auto px-6 py-20 text-center text-slate-400 font-medium text-sm">
-          Loading NGO profile details...
-        </div>
-      </div>
+      <AppLayout maxWidth="max-w-2xl">
+        <p className="text-center text-muted py-16 text-sm">Loading NGO profile…</p>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <NGONavbar />
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">NGO Organization Profile</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Configure your intake capacity, accepted food categories, and center map pin for automated matching.
-          </p>
-        </div>
+    <AppLayout maxWidth="max-w-2xl">
+      <PageHeader
+        title="NGO organization profile"
+        description="Configure intake capacity, food categories, and your center map pin."
+      />
 
-        <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
+      <form onSubmit={handleSubmit} className="card p-6 sm:p-8 space-y-6">
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-ink">Organization</h2>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Organization Name
-            </label>
+            <label className="field-label">Organization name</label>
             <input
               type="text"
               name="organizationName"
               required
               value={formData.organizationName}
               onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
               placeholder="e.g. Hope Food Shelter"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Govt / Trust Registration Number (Optional)
-            </label>
+            <label className="field-label">Govt / trust registration number (optional)</label>
             <input
               type="text"
               name="registrationNumber"
               value={formData.registrationNumber}
               onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
               placeholder="e.g. REG-2024-8891"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Helpline / Coordinator Phone
-            </label>
+            <label className="field-label">Helpline / coordinator phone</label>
             <input
               type="text"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
               placeholder="9876543210"
             />
           </div>
+        </section>
 
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-ink">Capacity and intake</h2>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Distribution Center Address
-            </label>
+            <label className="field-label">Distribution center address</label>
             <input
               type="text"
               name="address"
               required
               value={formData.address}
               onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
               placeholder="Street, Landmark, City"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Intake Capacity (Max Meals/Packages at once)
-            </label>
+            <label className="field-label">Intake capacity (max meals/packages at once)</label>
             <input
               type="number"
               name="capacity"
@@ -208,31 +197,29 @@ const NGOProfile = () => {
               min="1"
               value={formData.capacity}
               onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-              Food Categories Accepted
-            </label>
+            <label className="field-label">Food categories accepted</label>
             <div className="grid grid-cols-2 gap-2">
               {FOOD_OPTIONS.map((opt) => {
                 const isSelected = formData.foodPreferences.includes(opt.value);
                 return (
                   <label
                     key={opt.value}
-                    className={`flex items-center gap-2 text-xs font-medium rounded-xl p-3 border cursor-pointer transition ${
+                    className={`flex items-center gap-2 text-xs font-medium rounded-control p-3 border cursor-pointer transition ${
                       isSelected
-                        ? 'border-emerald-500 bg-emerald-50/70 text-emerald-900 font-semibold'
-                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                        ? 'border-forest bg-forest-light text-forest-dark font-semibold'
+                        : 'border-line bg-white text-body hover:bg-slate-50'
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => togglePreference(opt.value)}
-                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                      className="rounded text-forest focus:ring-forest"
                     />
                     {opt.label}
                   </label>
@@ -242,52 +229,45 @@ const NGOProfile = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Operating / Intake Hours
-            </label>
+            <label className="field-label">Operating / intake hours</label>
             <input
               type="text"
               name="availabilitySchedule"
               value={formData.availabilitySchedule}
               onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
               placeholder="e.g. Mon-Sun 8:00 AM - 10:00 PM"
             />
           </div>
 
-          <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+          <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-control border border-line">
             <input
               type="checkbox"
               id="isAvailable"
               name="isAvailable"
               checked={formData.isAvailable}
               onChange={handleChange}
-              className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+              className="rounded text-forest focus:ring-forest h-4 w-4"
             />
-            <label htmlFor="isAvailable" className="text-xs font-semibold text-slate-700 cursor-pointer">
-              Currently Available & Active to Accept Incoming Donations
+            <label htmlFor="isAvailable" className="text-sm font-medium text-ink cursor-pointer">
+              Currently available to accept incoming donations
             </label>
           </div>
+        </section>
 
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-ink">Location</h2>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Pin Center Location on Map
-            </label>
-            <div className="rounded-xl overflow-hidden border border-slate-300">
-              <LocationPicker onLocationSelect={setLocation} initialPosition={location} />
-            </div>
+            <label className="field-label">Pin center location</label>
+            <LocationPicker onLocationSelect={setLocation} initialPosition={location} />
           </div>
+        </section>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-emerald-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-emerald-700 active:bg-emerald-800 shadow-md shadow-emerald-600/20 transition disabled:opacity-50 mt-4"
-          >
-            {loading ? 'Saving Profile...' : 'Save NGO Profile →'}
-          </button>
-        </form>
-      </div>
-    </div>
+        <button type="submit" disabled={loading} className="btn-primary w-full">
+          {loading ? 'Saving profile…' : 'Save NGO profile'}
+        </button>
+      </form>
+    </AppLayout>
   );
 };
 

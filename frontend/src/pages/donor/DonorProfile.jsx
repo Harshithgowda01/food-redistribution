@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DonorNavbar from '../../components/DonorNavbar';
+import AppLayout from '../../components/layout/AppLayout';
 import LocationPicker from '../../components/LocationPicker';
+import PageHeader from '../../components/ui/PageHeader';
 import { getDonorProfile, updateDonorProfile } from '../../api/donor.api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -81,37 +82,25 @@ const DonorProfile = () => {
 
   if (initialLoading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <DonorNavbar />
-        <div className="max-w-2xl mx-auto px-6 py-20 text-center text-slate-400 font-medium text-sm">
-          Loading profile details...
-        </div>
-      </div>
+      <AppLayout maxWidth="max-w-2xl">
+        <p className="text-center text-muted py-16 text-sm">Loading profile…</p>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <DonorNavbar />
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">Donor Profile & Location</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Setting your address and default location coordinates helps find the nearest NGOs and volunteers faster.
-          </p>
-        </div>
+    <AppLayout maxWidth="max-w-2xl">
+      <PageHeader
+        title="Donor profile"
+        description="Your address and map pin help match the nearest NGOs and volunteers."
+      />
 
-        <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
+      <form onSubmit={handleSubmit} className="card p-6 sm:p-8 space-y-6">
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-ink">Organization</h2>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Donor Classification
-            </label>
-            <select
-              name="donorType"
-              value={formData.donorType}
-              onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
-            >
+            <label className="field-label">Donor classification</label>
+            <select name="donorType" value={formData.donorType} onChange={handleChange} className="field-input">
               <option value="individual">Individual Donor</option>
               <option value="restaurant">Restaurant / Eatery</option>
               <option value="hotel">Hotel / Hospitality</option>
@@ -121,67 +110,56 @@ const DonorProfile = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Organization / Establishment Name
-            </label>
+            <label className="field-label">Organization / establishment name</label>
             <input
               type="text"
               name="organizationName"
               value={formData.organizationName}
               onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
               placeholder="e.g. Green Leaf Kitchen"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Contact Phone Number
-            </label>
+            <label className="field-label">Contact phone number</label>
             <input
               type="text"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
               placeholder="9876543210"
             />
           </div>
+        </section>
 
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-ink">Location</h2>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Registered Address
-            </label>
+            <label className="field-label">Registered address</label>
             <input
               type="text"
               name="address"
               required
               value={formData.address}
               onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
               placeholder="Street, Landmark, City"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Default Location Pin on Map
-            </label>
-            <div className="rounded-xl overflow-hidden border border-slate-300">
-              <LocationPicker onLocationSelect={setLocation} initialPosition={location} />
-            </div>
+            <label className="field-label">Default location pin</label>
+            <LocationPicker onLocationSelect={setLocation} initialPosition={location} />
           </div>
+        </section>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-emerald-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-emerald-700 active:bg-emerald-800 shadow-md shadow-emerald-600/20 transition disabled:opacity-50 mt-4"
-          >
-            {loading ? 'Saving Profile...' : 'Save Donor Profile →'}
-          </button>
-        </form>
-      </div>
-    </div>
+        <button type="submit" disabled={loading} className="btn-primary w-full">
+          {loading ? 'Saving profile…' : 'Save donor profile'}
+        </button>
+      </form>
+    </AppLayout>
   );
 };
 

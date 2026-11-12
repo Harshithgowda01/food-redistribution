@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import VolunteerNavbar from '../../components/VolunteerNavbar';
+import { History, CheckCircle2, MapPin, ArrowRight, Package } from 'lucide-react';
+import AppLayout from '../../components/layout/AppLayout';
+import PageHeader from '../../components/ui/PageHeader';
+import EmptyState from '../../components/ui/EmptyState';
+import Skeleton from '../../components/ui/Skeleton';
 import { getVolunteerHistory } from '../../api/volunteer.api';
 
 const VolunteerHistory = () => {
@@ -34,74 +38,74 @@ const VolunteerHistory = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <VolunteerNavbar />
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">Delivery History</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Permanent record of all meals and packages rescued by you</p>
-          </div>
-          <Link
-            to="/volunteer/dashboard"
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-300 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 transition"
-          >
-            ← Back to Dashboard
+    <AppLayout maxWidth="max-w-4xl">
+      <PageHeader
+        title="Delivery history"
+        description="Permanent record of all food packages rescued and delivered by you."
+        actions={
+          <Link to="/volunteer/dashboard" className="btn-secondary">
+            Browse missions
           </Link>
+        }
+      />
+
+      {loading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
         </div>
-
-        {loading ? (
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200/80 text-center text-slate-400 text-sm">
-            Loading delivery archive...
-          </div>
-        ) : history.length === 0 ? (
-          <div className="bg-white p-12 rounded-2xl shadow-sm border border-slate-200/80 text-center">
-            <div className="text-4xl mb-3">📜</div>
-            <h3 className="text-lg font-bold text-slate-800 mb-1">No completed deliveries yet</h3>
-            <p className="text-slate-500 text-xs mb-5">
-              Deliveries you complete will be permanently listed here with full trip metrics.
-            </p>
-            <Link
-              to="/volunteer/dashboard"
-              className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-xs font-semibold hover:bg-emerald-700 active:bg-emerald-800 shadow-sm shadow-emerald-600/20 transition"
-            >
-              Browse Open Missions →
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {history.map((item) => (
-              <div key={item._id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80">
-                <div className="flex justify-between items-start flex-wrap gap-2 mb-2">
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-base">
-                      {item.donation?.foodName || 'Food Delivery'}
-                    </h3>
-                    <p className="text-xs text-slate-500 capitalize mt-0.5">
-                      {item.donation?.foodType?.replace(/_/g, ' ')} • {item.donation?.quantity} {item.donation?.quantityUnit}
-                    </p>
-                  </div>
-                  <span className="text-xs font-semibold px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full">
-                    ✓ Completed & Received
-                  </span>
+      ) : history.length === 0 ? (
+        <EmptyState
+          icon={History}
+          title="No completed deliveries yet"
+          description="Deliveries you complete will be permanently listed here with full route metrics."
+          actionLabel="Browse open delivery missions"
+          actionTo="/volunteer/dashboard"
+        />
+      ) : (
+        <div className="space-y-4">
+          {history.map((item) => (
+            <div key={item._id} className="card p-5 sm:p-6 space-y-3">
+              <div className="flex justify-between items-start flex-wrap gap-2">
+                <div>
+                  <h3 className="font-semibold text-ink text-base">
+                    {item.donation?.foodName || 'Food Delivery'}
+                  </h3>
+                  <p className="text-xs text-muted capitalize mt-0.5">
+                    {item.donation?.foodType?.replace(/_/g, ' ')} • {item.donation?.quantity} {item.donation?.quantityUnit}
+                  </p>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs text-slate-700 bg-slate-50 p-3.5 rounded-xl my-3">
-                  <p><span className="font-semibold text-slate-500">From (Pickup):</span> {item.pickupAddress}</p>
-                  <p><span className="font-semibold text-slate-500">To (NGO):</span> {item.deliveryAddress}</p>
-                  <p><span className="font-semibold text-slate-500">Delivered To:</span> {item.ngo?.name || 'NGO'}</p>
-                  <p><span className="font-semibold text-slate-500">Trip Distance:</span> ~{item.distanceKm || 0} km</p>
-                </div>
-
-                <div className="text-[11px] text-slate-400">
-                  Completed: {item.completedAt ? new Date(item.completedAt).toLocaleString() : new Date(item.updatedAt).toLocaleString()}
-                </div>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 bg-forest-light text-forest-dark border border-forest-muted rounded-full">
+                  <CheckCircle2 size={13} /> Completed & Received
+                </span>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs text-body bg-canvas p-3.5 rounded-control">
+                <p className="flex items-start gap-1.5">
+                  <MapPin size={13} className="text-muted shrink-0 mt-0.5" />
+                  <span><span className="font-semibold text-ink">From:</span> {item.pickupAddress}</span>
+                </p>
+                <p className="flex items-start gap-1.5">
+                  <MapPin size={13} className="text-muted shrink-0 mt-0.5" />
+                  <span><span className="font-semibold text-ink">To:</span> {item.deliveryAddress}</span>
+                </p>
+                <p className="text-muted">
+                  <span className="font-semibold text-ink">NGO recipient:</span> {item.ngo?.name || 'NGO'}
+                </p>
+                <p className="text-muted">
+                  <span className="font-semibold text-ink">Distance:</span> ~{item.distanceKm || 0} km
+                </p>
+              </div>
+
+              <div className="text-[11px] text-muted pt-1">
+                Delivered on: {item.completedAt ? new Date(item.completedAt).toLocaleString() : new Date(item.updatedAt).toLocaleString()}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </AppLayout>
   );
 };
 

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import VolunteerNavbar from '../../components/VolunteerNavbar';
+import AppLayout from '../../components/layout/AppLayout';
 import LocationPicker from '../../components/LocationPicker';
+import PageHeader from '../../components/ui/PageHeader';
 import { getVolunteerProfile, updateVolunteerProfile } from '../../api/volunteer.api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -102,45 +103,36 @@ const VolunteerProfile = () => {
 
   if (initialLoading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <VolunteerNavbar />
-        <div className="max-w-2xl mx-auto px-6 py-20 text-center text-slate-400 font-medium text-sm">
-          Loading volunteer profile...
-        </div>
-      </div>
+      <AppLayout maxWidth="max-w-2xl">
+        <p className="text-center text-muted py-16 text-sm">Loading volunteer profile…</p>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <VolunteerNavbar />
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">Volunteer Hero Profile</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Set your vehicle type and map location so our matching system can dispatch pickup requests near you.
-          </p>
-        </div>
+    <AppLayout maxWidth="max-w-2xl">
+      <PageHeader
+        title="Volunteer profile"
+        description="Configure your vehicle mode and operating base location for delivery dispatches."
+      />
 
-        <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
+      <form onSubmit={handleSubmit} className="card p-6 sm:p-8 space-y-6">
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-ink">Personal contact</h2>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Contact Phone Number
-            </label>
+            <label className="field-label">Contact phone number</label>
             <input
               type="text"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
               placeholder="e.g. 9876543210"
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Base / Home Address
-            </label>
+            <label className="field-label">Home / base address</label>
             <input
               type="text"
               name="address"
@@ -148,24 +140,25 @@ const VolunteerProfile = () => {
               value={formData.address}
               onChange={handleChange}
               placeholder="Street, locality, area, city"
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
             />
           </div>
+        </section>
 
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-ink">Vehicle and availability</h2>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-              Vehicle Type
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <label className="field-label">Transport vehicle mode</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {VEHICLE_OPTIONS.map((opt) => (
                 <button
                   type="button"
                   key={opt.value}
                   onClick={() => setFormData({ ...formData, vehicleType: opt.value })}
-                  className={`p-3 rounded-xl border text-xs font-semibold text-left transition ${
+                  className={`p-3 rounded-control border text-xs font-semibold text-left transition ${
                     formData.vehicleType === opt.value
-                      ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-500/20'
-                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                      ? 'border-forest bg-forest-light text-forest-dark ring-2 ring-forest/20'
+                      : 'border-line bg-white text-body hover:bg-slate-50'
                   }`}
                 >
                   {opt.label}
@@ -174,39 +167,40 @@ const VolunteerProfile = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+          <div className="flex items-center gap-2.5 p-3.5 bg-canvas rounded-control border border-line">
             <input
               type="checkbox"
               id="isAvailable"
               name="isAvailable"
               checked={formData.isAvailable}
               onChange={handleChange}
-              className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
+              className="w-4 h-4 text-forest rounded focus:ring-forest cursor-pointer"
             />
-            <label htmlFor="isAvailable" className="text-xs font-semibold text-slate-700 cursor-pointer">
-              Currently Available & Active to Accept Deliveries
+            <label htmlFor="isAvailable" className="text-sm font-medium text-ink cursor-pointer">
+              Currently available and ready to accept delivery dispatches
             </label>
           </div>
+        </section>
 
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-ink">Operating location</h2>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Pin Base Location on Map
-            </label>
-            <div className="rounded-xl overflow-hidden border border-slate-300">
+            <label className="field-label">Pin base location on map</label>
+            <div className="rounded-control overflow-hidden border border-line">
               <LocationPicker onLocationSelect={setLocation} initialPosition={location} />
             </div>
           </div>
+        </section>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-emerald-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-emerald-700 active:bg-emerald-800 shadow-md shadow-emerald-600/20 transition disabled:opacity-50 mt-4"
-          >
-            {loading ? 'Saving Profile...' : 'Save Volunteer Profile →'}
-          </button>
-        </form>
-      </div>
-    </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn-primary w-full"
+        >
+          {loading ? 'Saving profile…' : 'Save volunteer profile'}
+        </button>
+      </form>
+    </AppLayout>
   );
 };
 

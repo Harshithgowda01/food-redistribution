@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DonorNavbar from '../../components/DonorNavbar';
+import AppLayout from '../../components/layout/AppLayout';
 import LocationPicker from '../../components/LocationPicker';
+import PageHeader from '../../components/ui/PageHeader';
 import { createDonation } from '../../api/donation.api';
 import toast from 'react-hot-toast';
 
@@ -50,27 +51,18 @@ const PostDonation = () => {
   const minDateTime = new Date().toISOString().slice(0, 16);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <DonorNavbar />
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">Post Surplus Food</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Provide details so our AI system can immediately match and notify the closest NGOs with capacity.
-          </p>
-        </div>
+    <AppLayout maxWidth="max-w-2xl">
+      <PageHeader
+        title="Post surplus food"
+        description="Share details so nearby NGOs can be matched and notified."
+      />
 
-        <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
+      <form onSubmit={handleSubmit} className="card p-6 sm:p-8 space-y-6">
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-ink">Food details</h2>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Food Category
-            </label>
-            <select
-              name="foodType"
-              value={formData.foodType}
-              onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
-            >
+            <label className="field-label">Food category</label>
+            <select name="foodType" value={formData.foodType} onChange={handleChange} className="field-input">
               <option value="cooked_meals">Cooked Meals</option>
               <option value="raw_vegetables">Raw Vegetables</option>
               <option value="fruits">Fruits</option>
@@ -82,25 +74,36 @@ const PostDonation = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Food Title / Item Name
-            </label>
+            <label className="field-label">Food title / item name</label>
             <input
               type="text"
               name="foodName"
               required
               value={formData.foodName}
               onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
               placeholder="e.g. Vegetarian Buffet Surplus, Fresh Bread & Rolls"
             />
           </div>
 
+          <div>
+            <label className="field-label">Description (optional)</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              rows={2}
+              className="field-input"
+              placeholder="e.g. Packed in clean steel containers, vegetarian, includes rice and lentils"
+            />
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-ink">Quantity and timing</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                Quantity
-              </label>
+              <label className="field-label">Quantity</label>
               <input
                 type="number"
                 name="quantity"
@@ -108,20 +111,13 @@ const PostDonation = () => {
                 min="1"
                 value={formData.quantity}
                 onChange={handleChange}
-                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+                className="field-input"
                 placeholder="50"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                Unit
-              </label>
-              <select
-                name="quantityUnit"
-                value={formData.quantityUnit}
-                onChange={handleChange}
-                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
-              >
+              <label className="field-label">Unit</label>
+              <select name="quantityUnit" value={formData.quantityUnit} onChange={handleChange} className="field-input">
                 <option value="meals">Meals</option>
                 <option value="kg">Kg</option>
                 <option value="litres">Litres</option>
@@ -132,23 +128,7 @@ const PostDonation = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Description (Optional)
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={2}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
-              placeholder="e.g. Packed in clean steel containers, vegetarian, includes rice and lentils"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Food Expiry Timestamp
-            </label>
+            <label className="field-label">Food expiry timestamp</label>
             <input
               type="datetime-local"
               name="expiryTime"
@@ -156,44 +136,37 @@ const PostDonation = () => {
               min={minDateTime}
               value={formData.expiryTime}
               onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
             />
           </div>
+        </section>
 
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-ink">Pickup location</h2>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Pickup Address
-            </label>
+            <label className="field-label">Pickup address</label>
             <input
               type="text"
               name="pickupAddress"
               required
               value={formData.pickupAddress}
               onChange={handleChange}
-              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+              className="field-input"
               placeholder="e.g. 123 MG Road, Brigade Junction, Bengaluru"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Pin Exact Pickup Spot on Map
-            </label>
-            <div className="rounded-xl overflow-hidden border border-slate-300">
-              <LocationPicker onLocationSelect={setLocation} />
-            </div>
+            <label className="field-label">Pin exact pickup spot</label>
+            <LocationPicker onLocationSelect={setLocation} />
           </div>
+        </section>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-emerald-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-emerald-700 active:bg-emerald-800 shadow-md shadow-emerald-600/20 transition disabled:opacity-50 mt-4"
-          >
-            {loading ? 'Submitting & Matching...' : 'Post Donation & Launch Matching →'}
-          </button>
-        </form>
-      </div>
-    </div>
+        <button type="submit" disabled={loading} className="btn-primary w-full">
+          {loading ? 'Submitting and matching…' : 'Post donation'}
+        </button>
+      </form>
+    </AppLayout>
   );
 };
 

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import { getMyNotifications, markNotificationRead } from '../api/notification.api';
+import { getMyNotifications, markNotificationRead, markAllNotificationsRead } from '../api/notification.api';
 import toast from 'react-hot-toast';
 
 const NotificationContext = createContext();
@@ -159,13 +159,24 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
+  const markAllAsRead = async () => {
+    try {
+      setUnreadCount(0);
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      await markAllNotificationsRead();
+    } catch {
+      // Silently catch
+    }
+  };
+
   return (
     <NotificationContext.Provider
       value={{
         notifications,
         unreadCount,
         fetchNotifications,
-        markAsRead
+        markAsRead,
+        markAllAsRead
       }}
     >
       {children}

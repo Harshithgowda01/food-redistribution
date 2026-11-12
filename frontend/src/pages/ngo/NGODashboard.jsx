@@ -1,8 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { Package, Activity, CheckCircle2, AlertTriangle, Inbox, Clock, MapPin, User, Phone, Truck, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import NGONavbar from '../../components/NGONavbar';
+import AppLayout from '../../components/layout/AppLayout';
 import LocationPicker from '../../components/LocationPicker';
+import PageHeader from '../../components/ui/PageHeader';
+import StatCard from '../../components/ui/StatCard';
+import StatusBadge from '../../components/ui/StatusBadge';
+import EmptyState from '../../components/ui/EmptyState';
+import AlertBanner from '../../components/ui/AlertBanner';
+import Modal from '../../components/ui/Modal';
+import Skeleton from '../../components/ui/Skeleton';
 import {
   getIncomingDonations,
   getMyNGODonations,
@@ -11,7 +19,6 @@ import {
   rejectDonation,
   chooseCollectionMethod,
   confirmNGOReceipt,
-  switchSelfCollect,
   retryVolunteerSearch,
   volunteerTimeoutAction
 } from '../../api/ngo.api';
@@ -23,6 +30,7 @@ const NGODashboard = () => {
   const [incoming, setIncoming] = useState([]);
   const [myDonations, setMyDonations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
   const [decisionDonation, setDecisionDonation] = useState(null);
   const [cancelTargetDonation, setCancelTargetDonation] = useState(null);
@@ -55,6 +63,18 @@ const NGODashboard = () => {
       }
     } catch {
       console.error('Failed to load my donations');
+    }
+  };
+
+  const reloadAll = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchIncoming(), fetchMyDonations()]);
+      toast.success('Dashboard updated');
+    } finally {
+      if (isMountedRef.current) {
+        setRefreshing(false);
+      }
     }
   };
 
@@ -278,425 +298,529 @@ const NGODashboard = () => {
     completed: myDonations.filter(d => d.status === 'COMPLETED').length,
   };
 
+  const pendingCollectionAction = myDonations.filter(d => d.status === 'NGO_ACCEPTED');
+  const timedOutVolunteerDonations = myDonations.filter(d => d.status === 'VOLUNTEER_REQUESTED' && d.volunteerSearchTimedOut);
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <NGONavbar />
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-1">Welcome, {user?.name} 👋</h1>
-        <p className="text-gray-500 mb-6">Manage incoming donations, dispatch volunteers, and track deliveries</p>
+    <AppLayout maxWidth="max-w-6xl">
+      <div className="space-y-6">
+        <PageHeader
+          title={`Welcome, ${user?.name || 'Partner'} 👋`}
+          description="Manage incoming food requests, coordinate volunteer pickup, and track assigned deliveries."
+          actions={
+            <button
+              type="button"
+              onClick={reloadAll}
+              disabled={refreshing}
+              className="btn-secondary"
+            >
+              <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+              {refreshing ? 'Updating...' : 'Refresh'}
+            </button>
+          }
+        />
 
         {!user?.profileCompleted && (
-          <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-3 rounded-lg mb-6 flex justify-between items-center flex-wrap gap-2">
-            <span>Please complete your NGO profile to start receiving donations.</span>
-            <Link to="/ngo/profile" className="bg-yellow-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-yellow-600">
-              Complete Profile
-            </Link>
-          </div>
+          <AlertBanner
+            tone="warning"
+            title="NGO Profile Incomplete"
+            action={
+              <Link to="/ngo/profile" className="btn-secondary text-xs">
+                Complete Profile
+              </Link>
+            }
+          >
+            Please complete your NGO operating hours, intake capacity, and registered map location to receive matched donations.
+          </AlertBanner>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white p-5 rounded-xl shadow-sm border">
-            <p className="text-gray-500 text-sm">Total Received</p>
-            <p className="text-3xl font-bold text-gray-800">{stats.total}</p>
-          </div>
-          <div className="bg-white p-5 rounded-xl shadow-sm border">
-            <p className="text-gray-500 text-sm">Active Missions</p>
-            <p className="text-3xl font-bold text-blue-600">{stats.active}</p>
-          </div>
-          <div className="bg-white p-5 rounded-xl shadow-sm border">
-            <p className="text-gray-500 text-sm">Completed</p>
-            <p className="text-3xl font-bold text-green-600">{stats.completed}</p>
-          </div>
+        {/* Primary Metric Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCard
+            icon={Package}
+            label="Total Assigned"
+            value={stats.total}
+            hint="All matched donations"
+          />
+          <StatCard
+            icon={Activity}
+            label="Active Operations"
+            value={stats.active}
+            hint="In-progress collections & delivery"
+            accent="text-amber-600"
+          />
+          <StatCard
+            icon={CheckCircle2}
+            label="Completed Meals"
+            value={stats.completed}
+            hint="Successfully received by NGO"
+            accent="text-forest"
+          />
         </div>
 
-        {/* Incoming requests */}
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">
-          Incoming Donation Requests {incoming.length > 0 && `(${incoming.length})`}
-        </h2>
-
-        {loading ? (
-          <p className="text-gray-500 mb-8">Loading incoming donations...</p>
-        ) : incoming.length === 0 ? (
-          <div className="bg-white p-6 rounded-xl shadow-sm border text-center mb-8">
-            <p className="text-gray-500">No new donation requests right now.</p>
-          </div>
-        ) : (
-          <div className="space-y-4 mb-8">
-            {incoming.map((donation) => (
-              <div key={donation._id} className="bg-white p-5 rounded-xl shadow-sm border-2 border-green-200">
-                <div className="flex justify-between items-start flex-wrap gap-2">
-                  <div>
-                    <p className="font-semibold text-gray-800">{donation.foodName}</p>
-                    <p className="text-sm text-gray-500 capitalize">{donation.foodType.replace(/_/g, ' ')}</p>
-                  </div>
-                  <span className="text-xs font-medium px-3 py-1 rounded-full bg-yellow-100 text-yellow-700">
-                    Awaiting Your Response
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-sm mt-3">
-                  <p><span className="text-gray-500">Quantity:</span> {donation.quantity} {donation.quantityUnit}</p>
-                  <p><span className="text-gray-500">Expires:</span> {new Date(donation.expiryTime).toLocaleString()}</p>
-                  <p className="col-span-2"><span className="text-gray-500">Pickup:</span> {donation.pickupAddress}</p>
-                  <p className="col-span-2"><span className="text-gray-500">Donor:</span> {donation.donor?.name}</p>
-                </div>
-
-                <div className="flex gap-3 mt-4">
-                  <button
-                    onClick={() => handleAccept(donation._id)}
-                    disabled={actionLoading === donation._id}
-                    className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition"
-                  >
-                    {actionLoading === donation._id ? 'Accepting...' : 'Accept'}
-                  </button>
-                  <button
-                    onClick={() => handleReject(donation._id)}
-                    disabled={actionLoading === donation._id}
-                    className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-600 disabled:opacity-50 transition"
-                  >
-                    {actionLoading === donation._id ? 'Rejecting...' : 'Reject'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Accepted donations needing collection plan */}
-        {myDonations.some(donation => donation.status === 'NGO_ACCEPTED') && (
-          <div className="space-y-3 mb-8">
-            <h2 className="text-lg font-semibold text-gray-800">Action Needed: Choose Collection Method</h2>
-            {myDonations.filter(donation => donation.status === 'NGO_ACCEPTED').map((donation) => (
-              <div key={donation._id} className="bg-indigo-50 border border-indigo-200 p-4 rounded-xl flex justify-between items-center gap-3 flex-wrap">
-                <div>
-                  <p className="font-semibold text-gray-800">{donation.foodName}</p>
-                  <p className="text-sm text-gray-600">Choose whether your NGO will collect it or request a nearby volunteer.</p>
-                </div>
-                <button
-                  onClick={() => openCollectionDecision(donation)}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm"
-                >
-                  Choose Method →
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* No-Volunteer Fallback Alert Section */}
-        {myDonations.some(d => d.status === 'VOLUNTEER_REQUESTED' && d.volunteerSearchTimedOut) && (
-          <div className="space-y-4 mb-8">
-            <h2 className="text-lg font-semibold text-amber-900 flex items-center gap-2">
-              <span>⚠️</span> Volunteer Search Timed Out (Action Required)
+        {/* Section 1: Incoming Donation Requests */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-ink flex items-center gap-2">
+              Incoming Donation Requests
+              {incoming.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+                  {incoming.length} new
+                </span>
+              )}
             </h2>
-            {myDonations.filter(d => d.status === 'VOLUNTEER_REQUESTED' && d.volunteerSearchTimedOut).map((donation) => (
-              <div key={donation._id} className="bg-amber-50 border-2 border-amber-300 p-5 rounded-xl shadow-sm">
-                <div className="flex justify-between items-start flex-wrap gap-2 mb-2">
+            <span className="text-xs text-muted">Auto-refreshes every 15s</span>
+          </div>
+
+          {loading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-36 w-full" />
+              <Skeleton className="h-36 w-full" />
+            </div>
+          ) : incoming.length === 0 ? (
+            <EmptyState
+              icon={Inbox}
+              title="No incoming donation requests"
+              description="When nearby donors post surplus food that matches your location and capacity, matched requests will appear here for your review."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {incoming.map((donation) => (
+                <div key={donation._id} className="card p-5 border-l-4 border-l-forest hover:shadow-card transition flex flex-col justify-between">
                   <div>
-                    <h3 className="font-bold text-amber-900 text-base">{donation.foodName}</h3>
-                    <p className="text-xs text-amber-800 mt-1">
-                      No volunteer accepted this request within 3 minutes. Please choose how you want to proceed:
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div>
+                        <h3 className="font-semibold text-ink text-base">{donation.foodName}</h3>
+                        <p className="text-xs text-muted capitalize">{donation.foodType?.replace(/_/g, ' ')}</p>
+                      </div>
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
+                        Needs Action
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 text-xs text-body my-3">
+                      <div className="flex items-center gap-2">
+                        <Package size={14} className="text-muted shrink-0" />
+                        <span><strong>Quantity:</strong> {donation.quantity} {donation.quantityUnit}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock size={14} className="text-muted shrink-0" />
+                        <span><strong>Expires:</strong> {new Date(donation.expiryTime).toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin size={14} className="text-muted shrink-0" />
+                        <span className="truncate"><strong>Pickup:</strong> {donation.pickupAddress}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <User size={14} className="text-muted shrink-0" />
+                        <span><strong>Donor:</strong> {donation.donor?.name || 'Anonymous'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-3 border-t border-line mt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleAccept(donation._id)}
+                      disabled={actionLoading === donation._id}
+                      className="btn-primary flex-1 text-xs py-2"
+                    >
+                      {actionLoading === donation._id ? 'Accepting...' : 'Accept Request'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReject(donation._id)}
+                      disabled={actionLoading === donation._id}
+                      className="btn-secondary text-rose-700 hover:bg-rose-50 border-rose-200 flex-1 text-xs py-2"
+                    >
+                      {actionLoading === donation._id ? 'Rejecting...' : 'Decline'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Section 2: Action Needed: Choose Collection Method */}
+        {pendingCollectionAction.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-ink flex items-center gap-2">
+              <Truck size={18} className="text-indigo-600" />
+              Action Required: Choose Collection Method
+            </h2>
+            <div className="space-y-3">
+              {pendingCollectionAction.map((donation) => (
+                <div key={donation._id} className="card p-5 bg-indigo-50/40 border-indigo-200 flex items-center justify-between gap-4 flex-wrap">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-ink text-sm">{donation.foodName}</span>
+                      <StatusBadge status={donation.status} />
+                    </div>
+                    <p className="text-xs text-muted">
+                      Accepted by your NGO. Set delivery destination and choose whether your team will collect or request a volunteer.
                     </p>
                   </div>
-                  <span className="text-xs font-semibold px-3 py-1 bg-amber-200 text-amber-900 rounded-full">
-                    No Volunteer Available
-                  </span>
-                </div>
-
-                <div className="flex gap-3 flex-wrap mt-4">
                   <button
-                    onClick={() => handleSwitchSelfCollect(donation._id)}
-                    disabled={actionLoading === donation._id}
-                    className="bg-green-600 text-white px-4 py-2.5 rounded-lg text-xs font-semibold hover:bg-green-700 shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
+                    type="button"
+                    onClick={() => openCollectionDecision(donation)}
+                    className="btn-primary bg-indigo-600 hover:bg-indigo-700 text-xs py-2 px-4 shadow-sm"
                   >
-                    <span>🛵</span> Collect Myself
-                  </button>
-                  <button
-                    onClick={() => setTimeoutCancelTarget(donation)}
-                    disabled={actionLoading === donation._id}
-                    className="bg-red-600 text-white px-4 py-2.5 rounded-lg text-xs font-semibold hover:bg-red-700 shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
-                  >
-                    <span>❌</span> Cancel Donation (Rematch)
-                  </button>
-                  <button
-                    onClick={() => handleRetryVolunteer(donation._id)}
-                    disabled={actionLoading === donation._id}
-                    className="bg-gray-100 text-gray-700 border border-gray-300 px-3.5 py-2.5 rounded-lg text-xs font-medium hover:bg-gray-200 transition disabled:opacity-50"
-                  >
-                    🔄 Retry Search
+                    Set Collection Plan →
                   </button>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Timeout Cancellation Modal (Rematch Confirmation) */}
-        {timeoutCancelTarget && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
-              <div className="flex justify-between items-start">
-                <h2 className="text-lg font-bold text-gray-800">
-                  Cancel Donation & Rematch
-                </h2>
-                <button
-                  onClick={() => setTimeoutCancelTarget(null)}
-                  className="text-gray-400 hover:text-gray-600 font-bold"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 space-y-1">
-                <p className="font-semibold">Food Item: {timeoutCancelTarget.foodName}</p>
-                <p>By cancelling, this donation will be automatically rematched to the next highest-ranked eligible NGO.</p>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setTimeoutCancelTarget(null)}
-                  className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-300 transition"
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  disabled={actionLoading === timeoutCancelTarget._id}
-                  onClick={() => handleTimeoutCancelSubmit(timeoutCancelTarget._id, 'No volunteer accepted within timeout')}
-                  className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 shadow transition flex justify-center items-center gap-2"
-                >
-                  {actionLoading === timeoutCancelTarget._id ? (
-                    <span>Rematching...</span>
-                  ) : (
-                    <span>Confirm & Rematch</span>
-                  )}
-                </button>
-              </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* Collection modal */}
-        {decisionDonation && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <form onSubmit={submitCollectionDecision} className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 space-y-5 my-8">
-              <div className="flex justify-between items-start gap-3">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">Plan Collection for {decisionDonation.foodName}</h2>
-                  <p className="text-sm text-gray-500 mt-1">Set the final delivery address, then choose how the food will be collected.</p>
-                </div>
-                <button type="button" onClick={() => setDecisionDonation(null)} className="text-gray-500 hover:text-gray-800 text-xl font-bold">✕</button>
-              </div>
+        {/* Section 3: No-Volunteer Fallback Alert Section */}
+        {timedOutVolunteerDonations.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-amber-900 flex items-center gap-2">
+              <AlertTriangle size={18} className="text-amber-600" />
+              Volunteer Search Timed Out (Action Required)
+            </h2>
+            <div className="space-y-3">
+              {timedOutVolunteerDonations.map((donation) => (
+                <div key={donation._id} className="card p-5 bg-amber-50/60 border-amber-300 space-y-3">
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <div>
+                      <h3 className="font-semibold text-amber-950 text-sm">{donation.foodName}</h3>
+                      <p className="text-xs text-amber-800 mt-0.5">
+                        No volunteer accepted this delivery request within 3 minutes. Please choose how to proceed:
+                      </p>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-200 text-amber-900">
+                      No Volunteer Available
+                    </span>
+                  </div>
 
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Final delivery destination</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    ['registered', 'Registered address'],
-                    ['custom', 'Custom address'],
-                    ['map_pin', 'Map pin']
-                  ].map(([value, label]) => (
+                  <div className="flex gap-2 flex-wrap pt-2">
                     <button
                       type="button"
-                      key={value}
-                      onClick={() => {
-                        setDeliveryOption(value);
-                        if (value === 'registered') {
-                          setDeliveryAddress(registeredAddress);
-                          setDeliveryLocation(registeredLocation);
-                        } else {
-                          setDeliveryAddress(value === 'map_pin' ? 'Pinned delivery location' : '');
-                          setDeliveryLocation(null);
-                        }
-                      }}
-                      className={`border rounded-lg px-3 py-2 text-sm ${deliveryOption === value ? 'border-green-600 bg-green-50 text-green-700 font-semibold' : 'border-gray-300 text-gray-600'}`}
+                      onClick={() => handleSwitchSelfCollect(donation._id)}
+                      disabled={actionLoading === donation._id}
+                      className="btn-primary text-xs py-1.5 px-3"
                     >
-                      {label}
+                      🛵 Collect Myself
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => setTimeoutCancelTarget(donation)}
+                      disabled={actionLoading === donation._id}
+                      className="btn-danger text-xs py-1.5 px-3"
+                    >
+                      ❌ Cancel & Rematch NGO
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRetryVolunteer(donation._id)}
+                      disabled={actionLoading === donation._id}
+                      className="btn-secondary text-xs py-1.5 px-3"
+                    >
+                      🔄 Retry Volunteer Search
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              {deliveryOption !== 'registered' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {deliveryOption === 'custom' ? 'Custom address' : 'Map-pin label'}
-                  </label>
-                  <input
-                    type="text"
-                    value={deliveryAddress}
-                    onChange={(e) => setDeliveryAddress(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder={deliveryOption === 'custom' ? 'Street, area, city' : 'Pinned delivery location'}
-                  />
-                </div>
-              )}
-
-              {deliveryOption === 'registered' ? (
-                <div className="bg-gray-50 border rounded-lg p-3 text-sm text-gray-700">
-                  Using your registered address: {deliveryAddress}
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pin final delivery location</label>
-                  <LocationPicker onLocationSelect={setDeliveryLocation} initialPosition={deliveryLocation} />
-                </div>
-              )}
-
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">How will this food be collected?</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setCollectionMethod('self_collect')}
-                    className={`border rounded-lg p-3 text-left transition ${collectionMethod === 'self_collect' ? 'border-green-600 bg-green-50' : 'border-gray-300'}`}
-                  >
-                    <p className="font-semibold text-gray-800">Collect Myself</p>
-                    <p className="text-xs text-gray-500 mt-1">Your NGO members will pick up the food from the donor.</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCollectionMethod('volunteer')}
-                    className={`border rounded-lg p-3 text-left transition ${collectionMethod === 'volunteer' ? 'border-green-600 bg-green-50' : 'border-gray-300'}`}
-                  >
-                    <p className="font-semibold text-gray-800">Need Volunteer</p>
-                    <p className="text-xs text-gray-500 mt-1">The system will dispatch and notify the 5 nearest available volunteers.</p>
-                  </button>
-                </div>
-              </div>
-
-              <button
-                disabled={actionLoading === decisionDonation._id}
-                className="w-full bg-green-600 text-white py-2.5 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 shadow-md transition"
-              >
-                {actionLoading === decisionDonation._id ? 'Saving...' : 'Confirm Collection Plan'}
-              </button>
-            </form>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Cancellation Reason Modal */}
-        {cancelTargetDonation && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-            <form onSubmit={handleCancelSubmit} className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-              <h2 className="text-lg font-bold text-gray-800">
-                Cancel Donation: {cancelTargetDonation.foodName}
-              </h2>
-              <p className="text-xs text-gray-500">
-                Please provide a reason for cancellation. The donor will be notified.
-              </p>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Reason for Cancellation</label>
-                <textarea
-                  required
-                  rows={3}
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder="e.g. Unable to arrange transport, facility full, etc."
-                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+        {/* Section 4: All Assigned & Active Donations */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-ink">All Assigned Donations</h2>
+            <span className="text-xs text-muted">{myDonations.length} total records</span>
+          </div>
+
+          {myDonations.length === 0 ? (
+            <EmptyState
+              icon={Package}
+              title="No assigned donations yet"
+              description="Accepted donations will be listed here with tracking and receipt confirmation actions."
+            />
+          ) : (
+            <div className="card divide-y divide-line overflow-hidden">
+              {myDonations.map((donation) => {
+                const isAwaitingReceipt =
+                  ['DELIVERED', 'FOOD_COLLECTED', 'NGO_COLLECTING', 'OUT_FOR_DELIVERY'].includes(donation.status) &&
+                  !donation.ngoConfirmedReceipt;
+
+                const isCancellable = ['NGO_ACCEPTED', 'NGO_COLLECTING', 'VOLUNTEER_REQUESTED', 'VOLUNTEER_ASSIGNED'].includes(donation.status);
+
+                return (
+                  <div key={donation._id} className="p-4 sm:p-5 flex items-center justify-between gap-4 flex-wrap hover:bg-slate-50/50 transition">
+                    <div className="space-y-1.5 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-ink text-sm">{donation.foodName}</p>
+                        <StatusBadge status={donation.status} />
+                      </div>
+                      <p className="text-xs text-muted flex items-center gap-2 flex-wrap">
+                        <span>{donation.quantity} {donation.quantityUnit}</span>
+                        <span>•</span>
+                        <span>Donor: {donation.donor?.name || 'Donor'} ({donation.donor?.phone || 'No phone'})</span>
+                      </p>
+                      {donation.assignedVolunteer && (
+                        <p className="text-xs text-indigo-700 font-medium flex items-center gap-1.5">
+                          <Truck size={14} />
+                          Volunteer: {donation.assignedVolunteer.name} ({donation.assignedVolunteer.phone || 'No phone'})
+                        </p>
+                      )}
+                      {donation.status === 'CANCELLED' && donation.cancellationReason && (
+                        <p className="text-xs text-rose-600">Cancellation reason: {donation.cancellationReason}</p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isAwaitingReceipt && (
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmReceipt(donation._id)}
+                          disabled={actionLoading === donation._id}
+                          className="btn-primary text-xs py-1.5 px-3 shadow-sm"
+                        >
+                          {actionLoading === donation._id ? 'Confirming...' : '✓ Confirm Food Received'}
+                        </button>
+                      )}
+
+                      {isCancellable && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCancelTargetDonation(donation);
+                            setCancelReason('');
+                          }}
+                          className="btn-ghost text-xs text-rose-600 hover:bg-rose-50"
+                        >
+                          Cancel
+                        </button>
+                      )}
+
+                      {donation.status === 'COMPLETED' && (
+                        <span className="text-xs font-medium text-forest bg-forest-light px-3 py-1 rounded-full border border-forest/20">
+                          ✓ Completed
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal 1: Collection Decision */}
+      <Modal
+        open={!!decisionDonation}
+        onClose={() => setDecisionDonation(null)}
+        title={decisionDonation ? `Collection Plan: ${decisionDonation.foodName}` : ''}
+        wide
+      >
+        {decisionDonation && (
+          <form onSubmit={submitCollectionDecision} className="space-y-5">
+            <p className="text-xs text-muted">
+              Choose the delivery destination for this food donation, then decide whether your NGO team will pick it up or request a nearby volunteer.
+            </p>
+
+            <div className="space-y-2">
+              <label className="field-label">Final Delivery Destination</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  ['registered', 'Registered Address'],
+                  ['custom', 'Custom Address'],
+                  ['map_pin', 'Pin on Map']
+                ].map(([value, label]) => (
+                  <button
+                    type="button"
+                    key={value}
+                    onClick={() => {
+                      setDeliveryOption(value);
+                      if (value === 'registered') {
+                        setDeliveryAddress(registeredAddress);
+                        setDeliveryLocation(registeredLocation);
+                      } else {
+                        setDeliveryAddress(value === 'map_pin' ? 'Pinned delivery location' : '');
+                        setDeliveryLocation(null);
+                      }
+                    }}
+                    className={`border rounded-control px-3 py-2 text-xs font-medium transition ${
+                      deliveryOption === value
+                        ? 'border-forest bg-forest-light text-forest font-semibold'
+                        : 'border-line text-body hover:bg-slate-50'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {deliveryOption !== 'registered' && (
+              <div className="space-y-1">
+                <label className="field-label">
+                  {deliveryOption === 'custom' ? 'Custom Address' : 'Map Pin Reference'}
+                </label>
+                <input
+                  type="text"
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  className="field-input text-xs"
+                  placeholder={deliveryOption === 'custom' ? 'Street, area, city' : 'Pinned location reference'}
                 />
               </div>
-              <div className="flex gap-2">
+            )}
+
+            {deliveryOption === 'registered' ? (
+              <div className="card p-3.5 bg-slate-50 text-xs text-body border-line">
+                <p className="font-medium text-ink mb-0.5">NGO Registered Facility:</p>
+                <p className="text-muted">{deliveryAddress}</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="field-label">Pin destination location on map</label>
+                <LocationPicker onLocationSelect={setDeliveryLocation} initialPosition={deliveryLocation} />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="field-label">Collection Method</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setCancelTargetDonation(null)}
-                  className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-300"
+                  onClick={() => setCollectionMethod('self_collect')}
+                  className={`border rounded-card p-3.5 text-left transition ${
+                    collectionMethod === 'self_collect'
+                      ? 'border-forest bg-forest-light ring-1 ring-forest'
+                      : 'border-line hover:bg-slate-50'
+                  }`}
                 >
-                  Back
+                  <p className="font-semibold text-ink text-xs flex items-center gap-1.5">
+                    🛵 Collect Myself
+                  </p>
+                  <p className="text-[11px] text-muted mt-1">
+                    Your NGO team/staff will pick up the food directly from the donor location.
+                  </p>
                 </button>
                 <button
-                  type="submit"
-                  disabled={actionLoading === cancelTargetDonation._id}
-                  className="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
+                  type="button"
+                  onClick={() => setCollectionMethod('volunteer')}
+                  className={`border rounded-card p-3.5 text-left transition ${
+                    collectionMethod === 'volunteer'
+                      ? 'border-forest bg-forest-light ring-1 ring-forest'
+                      : 'border-line hover:bg-slate-50'
+                  }`}
                 >
-                  {actionLoading === cancelTargetDonation._id ? 'Cancelling...' : 'Confirm Cancellation'}
+                  <p className="font-semibold text-ink text-xs flex items-center gap-1.5">
+                    🤝 Need Volunteer
+                  </p>
+                  <p className="text-[11px] text-muted mt-1">
+                    The platform automatically notifies the 5 nearest active volunteers to handle transport.
+                  </p>
                 </button>
               </div>
-            </form>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-line">
+              <button
+                type="button"
+                onClick={() => setDecisionDonation(null)}
+                className="btn-secondary text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={actionLoading === decisionDonation._id}
+                className="btn-primary text-xs"
+              >
+                {actionLoading === decisionDonation._id ? 'Saving Plan...' : 'Confirm Collection Plan'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Modal 2: Timeout Cancellation & Rematch */}
+      <Modal
+        open={!!timeoutCancelTarget}
+        onClose={() => setTimeoutCancelTarget(null)}
+        title="Cancel & Rematch Donation"
+      >
+        {timeoutCancelTarget && (
+          <div className="space-y-4">
+            <div className="card p-3 bg-amber-50 text-xs text-amber-900 border-amber-200 space-y-1">
+              <p className="font-semibold">Donation: {timeoutCancelTarget.foodName}</p>
+              <p>
+                Cancelling this donation due to volunteer unavailability will trigger automated rematching to the next highest-ranked eligible NGO.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setTimeoutCancelTarget(null)}
+                className="btn-secondary text-xs"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading === timeoutCancelTarget._id}
+                onClick={() => handleTimeoutCancelSubmit(timeoutCancelTarget._id, 'No volunteer accepted within timeout')}
+                className="btn-danger text-xs"
+              >
+                {actionLoading === timeoutCancelTarget._id ? 'Rematching...' : 'Confirm & Rematch'}
+              </button>
+            </div>
           </div>
         )}
+      </Modal>
 
-        {/* Assigned and In-Progress Donations */}
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">All Assigned Donations</h2>
-
-        {myDonations.length === 0 ? (
-          <div className="bg-white p-6 rounded-xl shadow-sm border text-center">
-            <p className="text-gray-500">No donations assigned yet.</p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm border divide-y divide-gray-100">
-            {myDonations.map((donation) => {
-              const isAwaitingReceipt =
-                ['DELIVERED', 'FOOD_COLLECTED', 'NGO_COLLECTING', 'OUT_FOR_DELIVERY'].includes(donation.status) &&
-                !donation.ngoConfirmedReceipt;
-
-              const isCancellable = ['NGO_ACCEPTED', 'NGO_COLLECTING', 'VOLUNTEER_REQUESTED', 'VOLUNTEER_ASSIGNED'].includes(donation.status);
-
-              return (
-                <div key={donation._id} className="p-5 flex justify-between items-center flex-wrap gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-gray-800">{donation.foodName}</p>
-                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
-                        donation.status === 'COMPLETED'
-                          ? 'bg-green-100 text-green-800'
-                          : donation.status === 'CANCELLED' || donation.status === 'EXPIRED'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {donation.status.replace(/_/g, ' ')}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {donation.quantity} {donation.quantityUnit} • Donor: {donation.donor?.name} ({donation.donor?.phone || 'No phone'})
-                    </p>
-                    {donation.assignedVolunteer && (
-                      <p className="text-xs text-indigo-600 font-medium mt-0.5">
-                        🛵 Volunteer: {donation.assignedVolunteer.name} ({donation.assignedVolunteer.phone || 'No phone'})
-                      </p>
-                    )}
-                    {donation.status === 'CANCELLED' && donation.cancellationReason && (
-                      <p className="text-xs text-red-600 mt-0.5">Reason: {donation.cancellationReason}</p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {isAwaitingReceipt && (
-                      <button
-                        onClick={() => handleConfirmReceipt(donation._id)}
-                        disabled={actionLoading === donation._id}
-                        className="bg-green-600 text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-green-700 shadow-sm transition disabled:opacity-50"
-                      >
-                        {actionLoading === donation._id ? 'Confirming...' : '✓ Confirm Food Received'}
-                      </button>
-                    )}
-
-                    {isCancellable && (
-                      <button
-                        onClick={() => {
-                          setCancelTargetDonation(donation);
-                          setCancelReason('');
-                        }}
-                        className="text-gray-400 hover:text-red-600 text-xs px-2 py-1"
-                      >
-                        Cancel
-                      </button>
-                    )}
-
-                    {donation.status === 'COMPLETED' && (
-                      <span className="text-xs font-semibold text-green-700 bg-green-50 px-3 py-1 rounded-full border border-green-200">
-                        ✓ Completed
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Modal 3: Cancellation Reason Modal */}
+      <Modal
+        open={!!cancelTargetDonation}
+        onClose={() => setCancelTargetDonation(null)}
+        title={cancelTargetDonation ? `Cancel Donation: ${cancelTargetDonation.foodName}` : ''}
+      >
+        {cancelTargetDonation && (
+          <form onSubmit={handleCancelSubmit} className="space-y-4">
+            <p className="text-xs text-muted">
+              Please provide a reason for cancelling this donation. The donor will be notified.
+            </p>
+            <div className="space-y-1">
+              <label className="field-label">Reason for Cancellation</label>
+              <textarea
+                required
+                rows={3}
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="e.g. Storage capacity reached, emergency closure, etc."
+                className="field-input text-xs"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setCancelTargetDonation(null)}
+                className="btn-secondary text-xs"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                disabled={actionLoading === cancelTargetDonation._id}
+                className="btn-danger text-xs"
+              >
+                {actionLoading === cancelTargetDonation._id ? 'Cancelling...' : 'Confirm Cancellation'}
+              </button>
+            </div>
+          </form>
         )}
-      </div>
-    </div>
+      </Modal>
+    </AppLayout>
   );
 };
 
